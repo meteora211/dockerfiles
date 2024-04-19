@@ -1,0 +1,84 @@
+# run docker build -t dev:22.04 -f Dockerfile.ubuntu.dev .
+# docker build -t ubuntu_dev_czr:22.04 -f Dockerfile.ubuntu.cuda.dev.user . --build-arg USER_NAME=${USER} --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g)
+ARG CUDA="11.8.0"
+ARG CUDNN="8"
+ARG UBUNTU="20.04"
+
+FROM nvidia/cuda:${CUDA}-cudnn${CUDNN}-devel-ubuntu${UBUNTU}
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TORCH_CUDA_ARCH_LIST="6.0 6.1 7.0+PTX"
+ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+
+ARG USER_NAME
+ARG USER_ID
+ARG GROUP_ID
+RUN mkdir -p /etc/sudoers.d/
+RUN groupadd --gid $GROUP_ID $USER_NAME && \
+    useradd --uid $USER_ID --gid $GROUP_ID --create-home --shell /bin/bash $USER_NAME && \
+    echo "$USER_NAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/userconf && \
+    chmod 0440 /etc/sudoers.d/userconf
+RUN chown -R $USER_NAME:$USER_NAME /var/lib/apt/lists/
+
+# basic
+RUN apt update -y
+RUN DEBIAN_FRONTEND=noninteractive TZ=Asia/Singapore apt-get -y install tzdata
+RUN apt install -y sudo curl git fzf wget make ripgrep unzip
+
+# switch to user
+USER ${USER_NAME}
+WORKDIR /home/${USER_NAME}
+
+# build essential
+RUN sudo apt install -y --no-install-recommends clang lld
+RUN sudo apt install -y --no-install-recommends gcc g++
+
+# basic
+RUN sudo apt install -y bzip2 ca-certificates
+
+# languages
+RUN sudo apt install -y python3-dev python3-pip
+RUN sudo apt install -y nodejs npm
+RUN sudo curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -s | sh -s -- -y
+
+# conda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+    chmod +x miniconda.sh && \
+    sudo ./miniconda.sh -b -p /opt/miniconda && \
+    rm miniconda.sh
+
+# miniconda ---- not needed
+# RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+#     chmod +x Miniconda3-latest-Linux-x86_64.sh && \
+#     ./Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda && \
+#     rm Miniconda3-latest-Linux-x86_64.sh
+
+ENV PATH="/opt/miniconda/bin:$PATH"
+ENV PATH="/home/${USER_NAME}/.local/bin:/home/${USER_NAME}/.cargo/bin:$PATH"
+
+# zsh
+RUN sudo apt install -y zsh-autosuggestions zsh-syntax-highlighting zsh
+# ohmyzsh
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" --unattended
+
+# lazygit
+RUN LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*') && \
+    curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz" && \
+    tar xf lazygit.tar.gz lazygit && \
+    sudo install lazygit /usr/local/bin && \
+    rm lazygit.tar.gz
+
+# neovim
+RUN sudo apt install -y software-properties-common && \
+    sudo add-apt-repository ppa:neovim-ppa/unstable -y && \
+    sudo apt update -y && \
+    sudo apt install -y neovim
+
+ENV PATH /opt/miniconda/bin:$PATH
+
+RUN /opt/miniconda/bin/conda init zsh
+
+# ARG CUDA_VER_REPO="118"
+# RUN pip install torch==2.1.2+cu${CUDA_VER_REPO} torchvision==0.16.2+cu${CUDA_VER_REPO} --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER_REPO}
+
+RUN git clone https://github.com/meteora211/AstroNvim.git ~/.config/nvim
