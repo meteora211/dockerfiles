@@ -23,7 +23,7 @@ RUN chown -R $USER_NAME:$USER_NAME /var/lib/apt/lists/
 # basic
 RUN apt update -y
 RUN DEBIAN_FRONTEND=noninteractive TZ=Asia/Singapore apt-get -y install tzdata
-RUN apt install -y sudo curl git fzf wget make ripgrep unzip
+RUN apt install -y sudo curl git wget make ripgrep unzip
 
 # switch to user
 USER ${USER_NAME}
@@ -78,7 +78,13 @@ ENV PATH /opt/miniconda/bin:$PATH
 
 RUN /opt/miniconda/bin/conda init zsh
 
+# fzf
+RUN git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+RUN ~/.fzf/install --all
+
 # ARG CUDA_VER_REPO="118"
 # RUN pip install torch==2.1.2+cu${CUDA_VER_REPO} torchvision==0.16.2+cu${CUDA_VER_REPO} --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER_REPO}
+
+RUN pip install cmake ninja
 
 RUN git clone https://github.com/meteora211/AstroNvim.git ~/.config/nvim
