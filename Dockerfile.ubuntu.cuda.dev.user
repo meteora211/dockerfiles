@@ -2,7 +2,7 @@
 # docker build -t ubuntu_dev_czr:22.04 -f Dockerfile.ubuntu.cuda.dev.user . --build-arg USER_NAME=${USER} --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g)
 ARG CUDA="11.8.0"
 ARG CUDNN="8"
-ARG UBUNTU="20.04"
+ARG UBUNTU="22.04"
 
 FROM nvidia/cuda:${CUDA}-cudnn${CUDNN}-devel-ubuntu${UBUNTU}
 
@@ -28,6 +28,7 @@ RUN apt install -y sudo curl git wget make ripgrep unzip
 # switch to user
 USER ${USER_NAME}
 WORKDIR /home/${USER_NAME}
+ENV HOME=/home/${USER_NAME}
 
 # build essential
 RUN sudo apt install -y --no-install-recommends clang lld
@@ -69,12 +70,15 @@ RUN LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygi
     rm lazygit.tar.gz
 
 # neovim
-RUN sudo apt install -y software-properties-common && \
-    sudo add-apt-repository ppa:neovim-ppa/unstable -y && \
-    sudo apt update -y && \
-    sudo apt install -y neovim
+# RUN sudo apt install -y software-properties-common && \
+#     sudo add-apt-repository ppa:neovim-ppa/unstable -y && \
+#     sudo apt update -y && \
+#     sudo apt install -y neovim
 
-ENV PATH /opt/miniconda/bin:$PATH
+RUN cargo install bob-nvim
+RUN bob install latest && bob use latest
+
+ENV PATH="/home/${USER_NAME}/.local/share/bob/nvim-bin:$PATH"
 
 RUN /opt/miniconda/bin/conda init zsh
 
